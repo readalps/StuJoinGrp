@@ -22,7 +22,7 @@ void CStudJoinGroup::refreshSets()
         setLowInG1.insert(arrVal[idx]);
     for (u8 idx = 0; idx < swapSum; ++idx) {
         setHighInG1.insert(arrVal[5 - swapSum + idx]);
-        setHighInG1.insert(arrVal[10 - swapSum + idx]);
+        setHighInG2.insert(arrVal[10 - swapSum + idx]);
     }
     for (u8 val = 9; val > arrVal[9]; --val)
         setHighest.insert(val);
@@ -65,11 +65,23 @@ void CStudJoinGroup::outputSolution(int sum)
     for (u8 grp = 0; grp < 6; ++grp)
         printf("\tG%d:[%d,%d,%d,%d,%d]\n", (int)grp + 1, (int)arrVal[grp * 5], (int)arrVal[grp * 5 + 1], (int)arrVal[grp * 5 + 2], (int)arrVal[grp * 5 + 3], (int)arrVal[grp * 5 + 4]);
     printf("\n");
+    getchar();
 }
 
-void CStudJoinGroup::genNextGrp()
+bool CStudJoinGroup::genNextGrp()
 {
     u8 head = doneStuSum;
+    if (head >= 5) {
+        return false;
+    }
+    if (doneGrpSum > 0) {
+        u8 lastHead = arrVal[doneGrpSum * 5 - 5];
+        if (head < lastHead) {
+            printf(" When generating G%d, DoneStuSum is lower than last group head %d,\n so change current head.\n", 
+                (int)doneGrpSum + 1, (int)head, (int)lastHead);
+            head = lastHead;
+        }
+    }
     std::set<u8> setNew;
     if (setLowInG1.find(head) != setLowInG1.end()) {
         setNew = setHighest;
@@ -109,6 +121,7 @@ void CStudJoinGroup::genNextGrp()
     pos = doneGrpSum * 5;
     printf(" Try new group \n G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
         (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
+    return true;
 }
 
 bool CStudJoinGroup::adjust()
@@ -149,18 +162,15 @@ bool CStudJoinGroup::adjust()
     return false;
 }
 
-void CStudJoinGroup::calcDoneStuSum(u8 head)
+void CStudJoinGroup::calcDoneStuSum()
 {
-    u8 idx = 0;
-    for (; idx < 5; ++idx) {
-        if (!isStuFull(arrVal[head + idx]))
+    u8 stu = 0;
+    for (; stu < 10; ++stu) {
+        if (!isStuFull(stu)) {
             break;
+        }
     }
-    if (idx == 0) {
-        doneStuSum = 0;
-        return;
-    }
-    doneStuSum = arrVal[head + idx - 1] + 1;
+    doneStuSum = stu;
 }
 
 bool CStudJoinGroup::checkNewGrpValid()
@@ -169,11 +179,12 @@ bool CStudJoinGroup::checkNewGrpValid()
     for (u8 pos = head; pos != head + 5; ++pos) {
         if (!isStuValid(arrVal[pos])) {
             printf (" Student %d is invalid in G%d.\n", (int)arrVal[pos], (int)doneGrpSum + 1);
+            calcDoneStuSum();
             return false;
         }
     }
-    calcDoneStuSum(head);
     doneGrpSum++;
+    calcDoneStuSum();
     return true;
 }
 
@@ -181,12 +192,13 @@ bool CStudJoinGroup::isStuValid(u8 stu)
 {
     u8 times = 0;
     short flags = 0;
-    for (u8 grp = 0; grp <= doneGrpSum; ++grp)
+    for (u8 grp = 0; grp <= doneGrpSum; ++grp) {
         if (isStuInGrp(stu, grp)) {
             times++;
             for (u8 pos = 0; pos < 5; ++pos)
                 flags |= (1 << arrVal[grp * 5 + pos]);
         }
+    }
     return (times < 3 || (times == 3 && flags == 0x03FF));
 }
 
@@ -194,20 +206,25 @@ bool CStudJoinGroup::isStuFull(u8 stu)
 {
     u8 times = 0;
     short flags = 0;
-    for (u8 grp = 0; grp <= doneGrpSum; ++grp)
+    for (u8 grp = 0; grp < doneGrpSum; ++grp) {
         if (isStuInGrp(stu, grp)) {
             times++;
             for (u8 pos = 0; pos < 5; ++pos)
                 flags |= (1 << arrVal[grp * 5 + pos]);
         }
+    }
     return (times == 3 && flags == 0x03FF);
 }
 
 void CStudJoinGroup::backtrack()
 {
-    while (doneGrpSum > 2) { // G1 and G2 do not backtrack
+    while (doneGrpSum >= 2) { // G1 does not backtrack
         doneGrpSum--;
+        calcDoneStuSum();
         printf(" Backward to G%d.\n", (int)doneGrpSum + 1);
+        if (doneGrpSum == 1) {
+            return; // will try a new swap from G1 to G2
+        }
         bool bPass = true;
         while (true) {
             if (!adjust()) {
@@ -240,7 +257,10 @@ void CStudJoinGroup::scan()
         }
         if (doneGrpSum != 6)
         {
-            genNextGrp();
+            if (!genNextGrp()) {
+                backtrack();
+                continue;
+            }
             bool bPass = true;
             while (!checkNewGrpValid()) {
                 if (!adjust()) {

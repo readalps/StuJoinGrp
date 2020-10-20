@@ -24,5 +24,7 @@ int main()
     CStudJoinGroup obj;
     obj.init();
     obj.scan();
+    printf("\n No more solution.\n");
+    getchar();
     return 0;
 }

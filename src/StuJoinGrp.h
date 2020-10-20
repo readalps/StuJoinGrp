@@ -27,9 +27,9 @@ private:
     bool isStuDone(u8 stu);
     bool isStuInGrp(u8 stu, u8 grp);
     void outputSolution(int sum);
-    void genNextGrp();
+    bool genNextGrp();
     bool checkNewGrpValid();
-    void calcDoneStuSum(u8 head);
+    void calcDoneStuSum();
     bool isStuValid(u8 stu);
     bool isStuFull(u8 stu);
     bool adjust();
