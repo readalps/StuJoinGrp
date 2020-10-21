@@ -18,7 +18,7 @@ public:
         doneStuSum = 0; // no student joins 3 groups yet
         swapSum = 1; // just below lowest proper value 2
     }
-    void scan();
+    int scan();
 
 private:
     void genG2();
@@ -28,6 +28,8 @@ private:
     bool isStuInGrp(u8 stu, u8 grp);
     void outputSolution(int sum);
     bool genNextGrp();
+    u8 groups(u8 stu, std::set<u8>& setLack);
+    bool fillBlanks(u8 head, std::set<u8>& setNew);
     bool checkNewGrpValid();
     void calcDoneStuSum();
     bool isStuValid(u8 stu);

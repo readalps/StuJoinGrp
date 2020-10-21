@@ -23,8 +23,8 @@ int main()
     intro();
     CStudJoinGroup obj;
     obj.init();
-    obj.scan();
-    printf("\n No more solution.\n");
+    int sum = obj.scan();
+    printf("\n In total, we found %d solutions.\n", sum);
     getchar();
     return 0;
 }

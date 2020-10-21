@@ -68,6 +68,24 @@ void CStudJoinGroup::outputSolution(int sum)
     getchar();
 }
 
+bool CStudJoinGroup::fillBlanks(u8 head, std::set<u8>& setNew)
+{
+    setNew.insert(head);
+    u8 stu = head + 1;
+    while (setNew.size() < 5) {
+        if (stu > 9) {
+            break;
+        }
+        if (setNew.find(stu) == setNew.end()) {
+            if (!isStuFull(stu)) {
+                setNew.insert(stu);
+            }
+        }
+        stu++;
+    }
+    return (setNew.size() == 5);
+}
+
 bool CStudJoinGroup::genNextGrp()
 {
     u8 head = doneStuSum;
@@ -112,8 +130,18 @@ bool CStudJoinGroup::genNextGrp()
         }
     }
     else { // head must be in setHighInG1 since [5,6,7,8,9] cannot be a proper group
-        for (u8 idx = 0; idx < 5; ++idx)
-            setNew.insert(head + idx);
+        std::set<u8> setLackMate;
+        if (groups(head, setLackMate) != 2) {
+            for (u8 idx = 0; idx < 5; ++idx) {
+                setNew.insert(head + idx);
+            }
+        }
+        else {
+            setNew = setLackMate;
+            if (!fillBlanks(head, setNew)) {
+                return false;
+            }
+        }
     }
     u8 pos = doneGrpSum * 5;
     for (std::set<u8>::iterator it = setNew.begin(); it != setNew.end(); ++it)
@@ -122,6 +150,27 @@ bool CStudJoinGroup::genNextGrp()
     printf(" Try new group \n G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
         (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
     return true;
+}
+
+u8 CStudJoinGroup::groups(u8 stu, std::set<u8>& setLack)
+{
+    u8 times = 0;
+    short flags = 0;
+    for (u8 grp = 0; grp <= doneGrpSum; ++grp) {
+        if (isStuInGrp(stu, grp)) {
+            times++;
+            for (u8 pos = 0; pos < 5; ++pos) {
+                flags |= (1 << arrVal[grp * 5 + pos]);
+            }
+        }
+    }
+    short lackFlags = 0x03FF - flags;
+    for (u8 stu = 0; stu < 10; ++stu) {
+        if ((1 << stu) & lackFlags) {
+            setLack.insert(stu);
+        }
+    }
+    return times;
 }
 
 bool CStudJoinGroup::adjust()
@@ -150,12 +199,24 @@ bool CStudJoinGroup::adjust()
         return false;
     }
     /// head is in setHighG1
+    /// [3,4,5,6,7] to [3,4,5,6,8] and [3,4,5,8,9] to [3,4,6,7,8]
     u8 pos = doneGrpSum * 5;
     for (u8 idx = 0; idx < 4; ++idx) {
         if (arrVal[pos + 4 - idx] < 9 - idx) {
             arrVal[pos + 4 - idx]++;
-            for (u8 step = pos + 4 - idx; step < pos + 4; ++step)
+            for (u8 step = pos + 4 - idx; step < pos + 4; ++step) {
                 arrVal[step + 1] = arrVal[step] + 1;
+            }
+            bool bFullChk = true;
+            for (u8 stu = pos + 1; stu < pos + 5; ++stu) {
+                if (isStuFull(stu)) {
+                    bFullChk = false;
+                    break;
+                }
+            }
+            if (!bFullChk) {
+                continue;
+            }
             return true;
         }
     }
@@ -244,7 +305,7 @@ void CStudJoinGroup::backtrack()
     } // outer loop
 }
 
-void CStudJoinGroup::scan()
+int CStudJoinGroup::scan()
 {
     int nSolutionSum = 0;
     while (true)
@@ -277,10 +338,12 @@ void CStudJoinGroup::scan()
         }
         else
         {
-            if (allFit())
+            if (allFit()) {
                 outputSolution(++nSolutionSum);
-            doneGrpSum = 4;
+                doneGrpSum = 5;
+            }
             backtrack();
         }
     }
+    return nSolutionSum;
 }
