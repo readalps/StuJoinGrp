@@ -129,7 +129,7 @@ bool CStudJoinGroup::genNextGrp()
             setNew.insert(*setHighInG2.begin());
         }
     }
-    else { // head must be in setHighInG1 since [5,6,7,8,9] cannot be a proper group
+    else { // head must be in high subset of G1 since [5,6,7,8,9] cannot be a proper group
         std::set<u8> setLackMate;
         if (groups(head, setLackMate) != 2) {
             for (u8 idx = 0; idx < 5; ++idx) {
@@ -147,7 +147,7 @@ bool CStudJoinGroup::genNextGrp()
     for (std::set<u8>::iterator it = setNew.begin(); it != setNew.end(); ++it)
         arrVal[pos++] = *it;
     pos = doneGrpSum * 5;
-    printf(" Try new group \n G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
+    printf(" Try new group G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
         (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
     return true;
 }
@@ -156,7 +156,7 @@ u8 CStudJoinGroup::groups(u8 stu, std::set<u8>& setLack)
 {
     u8 times = 0;
     short flags = 0;
-    for (u8 grp = 0; grp <= doneGrpSum; ++grp) {
+    for (u8 grp = 0; grp < doneGrpSum; ++grp) {
         if (isStuInGrp(stu, grp)) {
             times++;
             for (u8 pos = 0; pos < 5; ++pos) {
@@ -173,10 +173,26 @@ u8 CStudJoinGroup::groups(u8 stu, std::set<u8>& setLack)
     return times;
 }
 
-bool CStudJoinGroup::adjust()
+bool CStudJoinGroup::greaterThanLast(u8 grp)
 {
+    bool ret = false;
+    for (u8 pos = grp * 5; pos < grp * 5 + 5; ++pos) {
+        if (arrVal[pos] > arrVal[pos - 5]) {
+            return true;
+        }
+        if (arrVal[pos] < arrVal[pos - 5]) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool CStudJoinGroup::adjust(bool& bReadjust)
+{
+    bReadjust = false;
     /// to change last 4 students for current group
     u8 head = arrVal[doneGrpSum * 5];
+    /// concerning head in low subset of G1
     if (setLowInG1.find(head) != setLowInG1.end()) {
         u8 blanks = 4 - setHighest.size();
         if (blanks == 1) {
@@ -198,7 +214,7 @@ bool CStudJoinGroup::adjust()
         }
         return false;
     }
-    /// head is in setHighG1
+    /// head is in high subset of G1
     /// [3,4,5,6,7] to [3,4,5,6,8] and [3,4,5,8,9] to [3,4,6,7,8]
     u8 pos = doneGrpSum * 5;
     for (u8 idx = 0; idx < 4; ++idx) {
@@ -208,14 +224,15 @@ bool CStudJoinGroup::adjust()
                 arrVal[step + 1] = arrVal[step] + 1;
             }
             bool bFullChk = true;
-            for (u8 stu = pos + 1; stu < pos + 5; ++stu) {
-                if (isStuFull(stu)) {
+            for (u8 cur = pos + 1; cur < pos + 5; ++cur) {
+                if (isStuFull(arrVal[cur])) {
                     bFullChk = false;
                     break;
                 }
             }
-            if (!bFullChk) {
-                continue;
+            if (!bFullChk || !greaterThanLast(doneGrpSum) || !checkNewGrpHead()) {
+                bReadjust = true;
+                return false;
             }
             return true;
         }
@@ -234,12 +251,46 @@ void CStudJoinGroup::calcDoneStuSum()
     doneStuSum = stu;
 }
 
+bool CStudJoinGroup::checkNewGrpHead()
+{
+    u8 head = doneGrpSum * 5;
+    u8 stu = arrVal[head];
+    std::set<u8> setLack;
+    u8 grpSum = groups(stu, setLack);
+    if (grpSum != 2) {
+        return true;
+    }
+    for (std::set<u8>::const_iterator it = setLack.begin(); it != setLack.end(); ++it) {
+        u8 stuLack = *it;
+        if (stuLack < stu) {
+            return false;
+        }
+        bool bMatch = false;
+        for (u8 pos = head + 1; pos < head + 5; ++pos) {
+            if (arrVal[pos] == stuLack) {
+                bMatch = true;
+                break;
+            }
+        }
+        if (!bMatch) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool CStudJoinGroup::checkNewGrpValid()
 {
     u8 head = doneGrpSum * 5;
+    if (setLowInG1.find(arrVal[head]) == setLowInG1.end()) {
+        if (!greaterThanLast(doneGrpSum)) {
+            printf(" G%d is lower than last group.\n", (int)doneGrpSum + 1);
+            return false;
+        }
+    }
     for (u8 pos = head; pos != head + 5; ++pos) {
         if (!isStuValid(arrVal[pos])) {
-            printf (" Student %d is invalid in G%d.\n", (int)arrVal[pos], (int)doneGrpSum + 1);
+            printf(" Student %d is invalid in G%d.\n", (int)arrVal[pos], (int)doneGrpSum + 1);
             calcDoneStuSum();
             return false;
         }
@@ -284,25 +335,34 @@ void CStudJoinGroup::backtrack()
         calcDoneStuSum();
         printf(" Backward to G%d.\n", (int)doneGrpSum + 1);
         if (doneGrpSum == 1) {
-            return; // will try a new swap from G1 to G2
+            break; // will try a new swap from G1 to G2
         }
-        bool bPass = true;
-        while (true) {
-            if (!adjust()) {
-                bPass = false;
-                break;
-            }
-            u8 pos = doneGrpSum * 5;
-            printf(" adjusted to \n G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
-                (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
-            if (checkNewGrpValid()) {
-                break;
-            }
-        } // inner loop
-        if (bPass) {
+        if (doAdjusting()) {
             break;
         }
-    } // outer loop
+    }
+}
+
+bool CStudJoinGroup::doAdjusting()
+{
+    bool bPass = false;
+    while (true) {
+        bool bReadjust = true;
+        if (!adjust(bReadjust)) {
+            if (bReadjust) {
+                continue;
+            }
+            break;
+        }
+        u8 pos = doneGrpSum * 5;
+        printf(" Adjusted to G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
+            (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
+        if (checkNewGrpValid()) {
+            bPass = true;
+            break;
+        }
+    }
+    return bPass;
 }
 
 int CStudJoinGroup::scan()
@@ -322,17 +382,10 @@ int CStudJoinGroup::scan()
                 backtrack();
                 continue;
             }
-            bool bPass = true;
-            while (!checkNewGrpValid()) {
-                if (!adjust()) {
-                    bPass = false;
-                    break;
-                }
-                u8 pos = doneGrpSum * 5;
-                printf(" adjusted to \n G%d:[%d,%d,%d,%d,%d]\n", (int)(doneGrpSum + 1), (int)arrVal[pos], 
-                    (int)arrVal[pos + 1], (int)arrVal[pos + 2], (int)arrVal[pos + 3], (int)arrVal[pos + 4]);
+            if (checkNewGrpValid()) {
+                continue;
             }
-            if (!bPass) {
+            if (!doAdjusting()) {
                 backtrack();
             }
         }

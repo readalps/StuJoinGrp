@@ -31,10 +31,13 @@ private:
     u8 groups(u8 stu, std::set<u8>& setLack);
     bool fillBlanks(u8 head, std::set<u8>& setNew);
     bool checkNewGrpValid();
+    bool checkNewGrpHead();
     void calcDoneStuSum();
     bool isStuValid(u8 stu);
     bool isStuFull(u8 stu);
-    bool adjust();
+    bool greaterThanLast(u8 grp);
+    bool doAdjusting();
+    bool adjust(bool& bReadjust);
     void backtrack();
 
     u8 arrVal[30]; // 6 groups of students
