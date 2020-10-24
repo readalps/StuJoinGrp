@@ -17,8 +17,12 @@ public:
         doneGrpSum = 1; // only G1 is done
         doneStuSum = 0; // no student joins 3 groups yet
         swapSum = 1; // just below lowest proper value 2
+        sluSumEx = 0;
     }
     int scan();
+    int getSluSumEx() {
+        return sluSumEx;
+    }
 
 private:
     void genG2();
@@ -27,6 +31,8 @@ private:
     bool isStuDone(u8 stu);
     bool isStuInGrp(u8 stu, u8 grp);
     void outputSolution(int sum);
+    bool meetExtraCond();
+    u8 intersectSum(u8 g1, u8 g2);
     bool genNextGrp();
     u8 groups(u8 stu, std::set<u8>& setLack);
     bool fillBlanks(u8 head, std::set<u8>& setNew);
@@ -39,6 +45,7 @@ private:
     bool doAdjusting();
     bool adjust(bool& bReadjust);
     void backtrack();
+    bool adjust2Blanks(u8& v2, u8& v3);
 
     u8 arrVal[30]; // 6 groups of students
     u8 doneGrpSum;
@@ -48,6 +55,7 @@ private:
     std::set<u8> setHighInG1;
     std::set<u8> setHighInG2;
     std::set<u8> setHighest;
+    int sluSumEx;
 };
 
 #endif

@@ -59,11 +59,38 @@ bool CStudJoinGroup::allFit()
     return true;
 }
 
+u8 CStudJoinGroup::intersectSum(u8 g1, u8 g2)
+{
+    u8 ret = 0;
+    for (u8 pos = g1 * 5; pos < g1 * 5 + 5; ++pos) {
+        if (isStuInGrp(arrVal[pos], g2)) {
+            ret++;
+        }
+    }
+    return ret;
+}
+
+bool CStudJoinGroup::meetExtraCond()
+{
+    for (u8 grp = 1; grp < 6; ++grp) {
+        for (u8 idx = 0; idx < grp; ++idx) {
+            if (intersectSum(grp, idx) < 2) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 void CStudJoinGroup::outputSolution(int sum)
 {
     printf("\n # Solution %d:\n", sum);
     for (u8 grp = 0; grp < 6; ++grp)
         printf("\tG%d:[%d,%d,%d,%d,%d]\n", (int)grp + 1, (int)arrVal[grp * 5], (int)arrVal[grp * 5 + 1], (int)arrVal[grp * 5 + 2], (int)arrVal[grp * 5 + 3], (int)arrVal[grp * 5 + 4]);
+    if (meetExtraCond()) {
+        printf(" Extra condition met.\n");
+        ++sluSumEx;
+    }
     printf("\n");
     getchar();
 }
@@ -105,20 +132,22 @@ bool CStudJoinGroup::genNextGrp()
         setNew = setHighest;
         setNew.insert(head);
         u8 blanks = 5 - setNew.size();
-        /// G1:[0,1,2,  3,4] G2:[0,1,2,  5,6] => G3:[0,b1,7,8,9] b1 need to be 1 or 3
+        /// G1:[0,1,2,  3,4] G2:[0,1,2,  5,6] => G3:[0,b1,7,8,9] b1 need to be 1 (later will be 3)
         /// G3:[0,1,  7,8,9] => G4:[2,b1,7,8,9] b1 need to be 3
+        /// G3:[0,3,  7,8,9] => G4:[1,b1,7,8,9] b1 need to be 2
         if (blanks == 1) { 
             setNew.insert(head + 1);
         }
-        /// G1:[0,1,  2,3,4] G2:[0,1,  5,6,7] => G3:[0,b1,b2,8,9] b1,b2 need to be 1,2 or 2,5
         else if (blanks == 2) {
+            /// G1:[0,1, 2,3,4] G2:[0,1, 5,6,7] => G3:[0,b1,b2,8,9] b1,b2 need to be 1,2 (later will be 2,3 or 2,5)
             if (setLowInG1.find(head + 1) != setLowInG1.end()) {
                 setNew.insert(head + 1);
                 setNew.insert(*setHighInG1.begin());
             }
+            /// G3:[0,  2,5,  8,9] => G4:[1,b1,b2,8,9] b1,b2 be 2,3
             else {
                 setNew.insert(*setHighInG1.begin());
-                setNew.insert(*setHighInG2.begin());
+                setNew.insert(*setHighInG1.begin() + 1);
             }
 
         }
@@ -129,7 +158,7 @@ bool CStudJoinGroup::genNextGrp()
             setNew.insert(*setHighInG2.begin());
         }
     }
-    else { // head must be in high subset of G1 since [5,6,7,8,9] cannot be a proper group
+    else { // head must be in high subset of G1, since [5,6,7,8,9] cannot be a proper group
         std::set<u8> setLackMate;
         if (groups(head, setLackMate) != 2) {
             for (u8 idx = 0; idx < 5; ++idx) {
@@ -197,20 +226,32 @@ bool CStudJoinGroup::adjust(bool& bReadjust)
         u8 blanks = 4 - setHighest.size();
         if (blanks == 1) {
             u8& val2 = arrVal[doneGrpSum * 5 + 1];
-            if (setLowInG1.find(val2) != setLowInG1.end()) {
-                val2 = *setHighInG1.begin();
-                return true;
+            /// G3:[0, 1, 7,8,9] => [0, 3, 7,8,9]
+            if (head == 0) {
+                if (val2 == 1) {
+                    val2 = 3;
+                    return true;
+                }
+                return false;
             }
-            return false;
+            /// G4:[1,b1,7,8,9] => G4:[1,b1+1,7,8,9]
+            /// G4:[2,b1,7,8,9] =+ G4:[2,b1+1,7,8,9]
+            if (val2 == 6) {
+                return false;
+            }
+            ++val2;
+            return true;
         }
         else if (blanks == 2) {
             u8& val2 = arrVal[doneGrpSum * 5 + 1];
+            u8& val3 = arrVal[doneGrpSum * 5 + 2];
+            /// G3:[0,  1,2,  8,9] => G3:[0,  2,3,  8,9]
             if (setLowInG1.find(val2) != setLowInG1.end()) {
                 val2 = *setHighInG1.begin();
-                arrVal[doneGrpSum * 5 + 2] = *setHighInG2.begin();
+                val3 = val2 + 1;
                 return true;
             }
-            return false;
+            return adjust2Blanks(val2, val3);
         }
         return false;
     }
@@ -238,6 +279,28 @@ bool CStudJoinGroup::adjust(bool& bReadjust)
         }
     }
     return false;
+}
+
+/// dealing G3:[0,  b1,b2,  8,9] or G4:[1,  b1,b2,  8,9] while b1 >= 2
+bool CStudJoinGroup::adjust2Blanks(u8& v2, u8& v3)
+{
+    if (arrVal[doneGrpSum * 5] == 0) {
+        if (v3 == 5) { // G3:[0,  2,5,  8,9]
+            return false;
+        }
+        v3 = 5;
+        return true;
+    }
+    if (v2 == 6) { // G4:[1,  6,7,  8,9]
+        return false;
+    }
+    if (v3 < 7) {
+        ++v3;
+        return true;
+    }
+    ++v2;
+    v3 = v2 + 1;
+    return true;
 }
 
 void CStudJoinGroup::calcDoneStuSum()

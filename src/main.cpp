@@ -5,7 +5,9 @@ void intro()
     printf(" Suppose 10 students, denoted by number 0-9, to join some groups such that\n");
     printf(" each group can contain at most 5 students and \n");
     printf(" for any 2 students, they are both in at least 1 group.\n");
-    printf(" Please list all kinds of solutions with as few groups as possible.\n\n");
+    printf(" Please list all kinds of solutions with as few groups as possible.\n");
+    printf(" And identify which of them can meet extra condition: \n");
+    printf(" for any 2 groups, their intersection contains at least 2 students.\n\n");
 
     getchar();
     printf(" Step1. If student A only joins one group then he has at most 4 group-mates; \n");
@@ -24,7 +26,7 @@ int main()
     CStudJoinGroup obj;
     obj.init();
     int sum = obj.scan();
-    printf("\n In total, we found %d solutions.\n", sum);
+    printf("\n In total, we found %d solutions among which %d solutions met extra condition.\n", sum, obj.getSluSumEx());
     getchar();
     return 0;
 }
